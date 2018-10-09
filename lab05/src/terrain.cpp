@@ -26,12 +26,21 @@ glm::vec3 Terrain::getPosition(int row, int col) {
     position.z = 10 * col/m_numCols - 5;
 
     // TODO: Adjust position.y using value noise.
-    float x_frac = 0.0f, y_frac = 0.0f;
-    float yA = randValue(row / 20, col / 20);
-    float yB = randValue(row / 20, col / 20 + 1);
-    float yC = randValue(row / 20 + 1, col / 20);
-    float yD = randValue(row / 20 + 1, col / 20 + 1);
-    position.y = randValue(row / 20, col / 20);
+    int freq = 5;
+    float amp = 1.0;
+    for (int i = 0; i < 3; ++i) {
+        int nRows = m_numRows / freq, nCols = m_numCols / freq;
+        float x_frac = glm::fract(col / static_cast<float>(nCols)), y_frac = glm::fract(row / static_cast<float>(nRows));
+        x_frac = 3*x_frac*x_frac - 2*x_frac*x_frac*x_frac;
+        y_frac = 3*y_frac*y_frac - 2*y_frac*y_frac*y_frac;
+        float yA = randValue(row / nRows, col / nCols);
+        float yB = randValue(row / nRows, col / nCols + 1);
+        float yC = randValue(row / nRows + 1, col / nCols);
+        float yD = randValue(row / nRows + 1, col / nCols + 1);
+        position.y += amp * glm::mix(glm::mix(yA, yB, x_frac), glm::mix(yC, yD, x_frac), y_frac);
+        freq *= 2;
+        amp /= glm::pow(2.0f, i + 1.0f);
+    }
     return position;
 }
 
@@ -43,7 +52,27 @@ glm::vec3 Terrain::getNormal(int row, int col) {
     // TODO: Compute the normal at the given row and column using the positions of the
     //       neighboring vertices.
 
-    return glm::vec3(0, 1, 0);
+    glm::vec3 p = getPosition(row, col),
+            n0 = getPosition(row, col + 1),
+            n1 = getPosition(row + 1, col + 1),
+            n2 = getPosition(row + 1, col),
+            n3 = getPosition(row + 1, col - 1),
+            n4 = getPosition(row, col - 1),
+            n5 = getPosition(row - 1, col - 1),
+            n6 = getPosition(row - 1, col),
+            n7 = getPosition(row - 1, col + 1);
+
+    glm::vec3 norm(0, 0, 0);
+    norm += glm::normalize(glm::cross(n0 - p, n1 - p));
+    norm += glm::normalize(glm::cross(n1 - p, n2 - p));
+    norm += glm::normalize(glm::cross(n2 - p, n3 - p));
+    norm += glm::normalize(glm::cross(n3 - p, n4 - p));
+    norm += glm::normalize(glm::cross(n4 - p, n5 - p));
+    norm += glm::normalize(glm::cross(n5 - p, n6 - p));
+    norm += glm::normalize(glm::cross(n6 - p, n7 - p));
+    norm += glm::normalize(glm::cross(n7 - p, n0 - p));
+
+    return glm::normalize(norm);
 }
 
 
@@ -52,7 +81,7 @@ glm::vec3 Terrain::getNormal(int row, int col) {
  */
 void Terrain::init() {
     // TODO: Change from GL_LINE to GL_FILL in order to render full triangles instead of wireframe.
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
     // Initializes a grid of vertices using triangle strips.
